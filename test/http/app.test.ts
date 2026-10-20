@@ -11,6 +11,7 @@ import {
   InMemoryUserRepository,
   fakeHasher,
   indicator,
+  makeCatalogService,
   sequentialIds,
 } from '../support/fakes.js';
 
@@ -30,7 +31,10 @@ async function build(opts: { redisUp?: boolean } = {}) {
     ids: sequentialIds(),
     refreshTokenTtlSec: config.auth.refreshTokenTtlSec,
   });
-  return { app: await buildHttpServer({ config, auth, health }), health };
+  return {
+    app: await buildHttpServer({ config, auth, health, catalog: makeCatalogService().catalog }),
+    health,
+  };
 }
 
 describe('HTTP adapter', () => {

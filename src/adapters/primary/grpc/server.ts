@@ -1,14 +1,17 @@
 import { Server, ServerCredentials } from '@grpc/grpc-js';
 import type { AuthUseCases } from '../../../ports/primary/auth.js';
+import type { CatalogUseCases } from '../../../ports/primary/catalog.js';
 import type { HealthUseCases } from '../../../ports/primary/health.js';
 import type { GrpcLogger } from './errors.js';
 import { authHandlers } from './handlers/v1/auth.handler.js';
+import { catalogHandlers } from './handlers/v1/catalog.handler.js';
 import { healthHandlers } from './handlers/v1/health.handler.js';
 import { loadProtos } from './proto.js';
 
 export interface GrpcDeps {
   auth: AuthUseCases;
   health: HealthUseCases;
+  catalog: CatalogUseCases;
   log: GrpcLogger;
   maxMessageBytes: number;
 }
@@ -21,12 +24,13 @@ export interface GrpcServer {
 }
 
 export function buildGrpcServer(deps: GrpcDeps): GrpcServer {
-  const { authService, healthService } = loadProtos();
+  const { authService, catalogService, healthService } = loadProtos();
   const server = new Server({
     'grpc.max_receive_message_length': deps.maxMessageBytes,
     'grpc.max_send_message_length': deps.maxMessageBytes,
   });
   server.addService(authService.service, authHandlers(deps.auth, deps.log));
+  server.addService(catalogService.service, catalogHandlers(deps.catalog, deps.log));
   server.addService(healthService.service, healthHandlers(deps.health, deps.log));
 
   return {

@@ -6,6 +6,9 @@ import type { FastifyInstance } from 'fastify';
 import { buildGrpcServer, type GrpcServer } from '../adapters/primary/grpc/server.js';
 import { buildHttpServer } from '../adapters/primary/http/server.js';
 import { PostgresHealthIndicator } from '../adapters/secondary/postgres/pg-health.js';
+import { PgCinemaRepository } from '../adapters/repositories/postgres/pg-cinema-repository.js';
+import { PgMovieRepository } from '../adapters/repositories/postgres/pg-movie-repository.js';
+import { PgShowRepository } from '../adapters/repositories/postgres/pg-show-repository.js';
 import { PgUserRepository } from '../adapters/repositories/postgres/pg-user-repository.js';
 import { createPgPool } from '../adapters/secondary/postgres/pool.js';
 import { createRedisClient } from '../adapters/secondary/redis/client.js';
@@ -15,6 +18,7 @@ import { BcryptPasswordHasher } from '../adapters/secondary/security/bcrypt-pass
 import { JwtTokenService } from '../adapters/secondary/security/jwt-token-service.js';
 import { systemClock, uuidGenerator } from '../adapters/secondary/system/system.js';
 import { AuthService } from '../services/auth/auth-service.js';
+import { CatalogService } from '../services/catalog/catalog-service.js';
 import { HealthService } from '../services/health/health-service.js';
 import type { AppConfig } from '../config/schema.js';
 
@@ -48,11 +52,19 @@ export async function createContainer(config: AppConfig): Promise<Container> {
     refreshTokenTtlSec: config.auth.refreshTokenTtlSec,
   });
 
-  const app = await buildHttpServer({ config, auth, health, redis });
+  const catalog = new CatalogService({
+    movies: new PgMovieRepository(pool),
+    cinemas: new PgCinemaRepository(pool),
+    shows: new PgShowRepository(pool),
+    clock: systemClock,
+    ids: uuidGenerator,
+  });
+
+  const app = await buildHttpServer({ config, auth, health, catalog, redis });
   pool.on('error', (err) => app.log.error({ err }, 'postgres pool error'));
 
   const grpc = config.grpc.enabled
-    ? buildGrpcServer({ auth, health, log: app.log, maxMessageBytes: config.grpc.maxMessageBytes })
+    ? buildGrpcServer({ auth, health, catalog, log: app.log, maxMessageBytes: config.grpc.maxMessageBytes })
     : null;
 
   return {
