@@ -1,0 +1,12 @@
+# Production must supply secrets through the environment; there are no fallbacks here.
+postgres:
+  url: ${DATABASE_URL}
+  poolMax: 50
+redis:
+  url: ${REDIS_URL}
+auth:
+  jwt:
+    secret: ${JWT_SECRET}
+server:
+  cors:
+    origins: []

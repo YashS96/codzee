@@ -1,0 +1,36 @@
+# Reference manifest showing how the probes are meant to be wired.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: codzee-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: codzee-api }
+  template:
+    metadata:
+      labels: { app: codzee-api }
+    spec:
+      terminationGracePeriodSeconds: 30 # > shutdown.drainDelayMs + shutdown.timeoutMs
+      containers:
+        - name: api
+          image: codzee-api:latest
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: grpc, containerPort: 50051 }
+          envFrom: [{ secretRef: { name: codzee-api } }]
+          startupProbe:
+            httpGet: { path: /v1/health/live, port: 8080 }
+            failureThreshold: 30
+            periodSeconds: 1
+          livenessProbe:
+            httpGet: { path: /v1/health/live, port: 8080 }
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /v1/health/ready, port: 8080 }
+            periodSeconds: 5
+            failureThreshold: 2
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 512Mi }

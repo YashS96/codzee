@@ -1,0 +1,2 @@
+sh scripts/check-git-identity.sh
+npm run check

@@ -1,0 +1,7 @@
+log:
+  level: ${LOG_LEVEL:-debug}
+  pretty: true
+auth:
+  bcryptRounds: 8
+shutdown:
+  drainDelayMs: 0

@@ -1,0 +1,5 @@
+sh scripts/check-git-identity.sh
+sh scripts/check-secrets.sh
+npx lint-staged
+npm run typecheck
+npm test -- --reporter=dot

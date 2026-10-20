@@ -1,0 +1,52 @@
+name: codzee
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: codzee
+      POSTGRES_PASSWORD: codzee
+      POSTGRES_DB: codzee
+    ports: ['5432:5432']
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U codzee -d codzee']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports: ['6379:6379']
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    build: .
+    command: ['node', 'dist/adapters/secondary/postgres/migrate.js']
+    environment: &app-env
+      NODE_ENV: production
+      DATABASE_URL: postgres://codzee:codzee@postgres:5432/codzee
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-local-compose-secret-local-compose-secret}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    build: .
+    environment: *app-env
+    ports: ['8080:8080', '50051:50051']
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    deploy:
+      replicas: 1
+
+volumes:
+  pgdata:
+  redisdata:

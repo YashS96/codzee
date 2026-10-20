@@ -1,0 +1,57 @@
+# Base configuration. Environment files (config/<NODE_ENV>.yaml) are deep-merged on top.
+# ${VAR} and ${VAR:-fallback} are interpolated from the process environment.
+app:
+  name: codzee-booking
+  env: ${NODE_ENV:-development}
+  version: ${APP_VERSION:-0.1.0}
+
+server:
+  host: ${HOST:-0.0.0.0}
+  port: ${PORT:-8080}
+  trustProxy: true
+  bodyLimitBytes: 1048576
+  requestTimeoutMs: 15000
+  cors:
+    origins: ['http://localhost:3000']
+
+grpc:
+  enabled: true
+  host: ${GRPC_HOST:-0.0.0.0}
+  port: ${GRPC_PORT:-50051}
+  maxMessageBytes: 4194304
+
+log:
+  level: ${LOG_LEVEL:-info}
+  pretty: false
+
+postgres:
+  url: ${DATABASE_URL:-postgres://codzee:codzee@localhost:5432/codzee}
+  poolMax: 20
+  idleTimeoutMs: 30000
+  connectionTimeoutMs: 5000
+  statementTimeoutMs: 10000
+
+redis:
+  url: ${REDIS_URL:-redis://localhost:6379/0}
+  keyPrefix: 'codzee:'
+  connectTimeoutMs: 5000
+
+auth:
+  jwt:
+    secret: ${JWT_SECRET:-dev-only-insecure-secret-change-me-please}
+    issuer: codzee
+    audience: codzee-api
+    accessTokenTtlSec: 900
+  refreshTokenTtlSec: 604800
+  bcryptRounds: 12
+  rateLimit:
+    max: 10
+    windowMs: 60000
+
+health:
+  checkTimeoutMs: 2000
+
+shutdown:
+  # Time to keep serving after readiness flips to 503, so load balancers stop routing first.
+  drainDelayMs: 5000
+  timeoutMs: 20000

@@ -1,0 +1,8 @@
+log:
+  level: silent
+auth:
+  bcryptRounds: 4
+  jwt:
+    secret: test-secret-test-secret-test-secret-123
+shutdown:
+  drainDelayMs: 0

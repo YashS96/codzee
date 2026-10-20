@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package codzee.v1;
+
+// Authentication API. Authenticated RPCs expect `authorization: Bearer <access token>` metadata.
+service AuthService {
+  rpc Register(RegisterRequest) returns (User);
+  rpc Login(LoginRequest) returns (AuthTokens);
+  rpc Refresh(RefreshRequest) returns (AuthTokens);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc GetProfile(GetProfileRequest) returns (User);
+}
+
+message RegisterRequest {
+  string email = 1;
+  string name = 2;
+  string password = 3;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message RefreshRequest {
+  string refresh_token = 1;
+}
+
+message LogoutRequest {
+  // Optional: also revoke this refresh token.
+  string refresh_token = 1;
+}
+
+message LogoutResponse {}
+
+message GetProfileRequest {}
+
+message AuthTokens {
+  string access_token = 1;
+  string refresh_token = 2;
+  string token_type = 3;
+  int32 expires_in = 4;
+}
+
+message User {
+  string id = 1;
+  string email = 2;
+  string name = 3;
+  string role = 4;
+  string created_at = 5;
+}
