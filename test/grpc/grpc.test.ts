@@ -12,6 +12,7 @@ import {
   InMemoryUserRepository,
   fakeHasher,
   indicator,
+  makeCatalogService,
   sequentialIds,
 } from '../support/fakes.js';
 
@@ -48,7 +49,13 @@ describe('gRPC adapter', () => {
       ids: sequentialIds(),
       refreshTokenTtlSec: config.auth.refreshTokenTtlSec,
     });
-    server = buildGrpcServer({ auth: authService, health, log: silentLog, maxMessageBytes: 1024 * 1024 });
+    server = buildGrpcServer({
+      auth: authService,
+      health,
+      catalog: makeCatalogService().catalog,
+      log: silentLog,
+      maxMessageBytes: 1024 * 1024,
+    });
     const port = await server.listen('127.0.0.1', 0);
     const { authService: AuthClient, healthService: HealthClient } = loadProtos();
     auth = new AuthClient(`127.0.0.1:${port}`, credentials.createInsecure());

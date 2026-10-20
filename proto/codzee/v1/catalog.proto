@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package codzee.v1;
+
+// Public, read-only catalog API.
+service CatalogService {
+  rpc ListMovies(ListMoviesRequest) returns (ListMoviesResponse);
+  rpc ListShows(ListShowsRequest) returns (ListShowsResponse);
+}
+
+message ListMoviesRequest {}
+
+message ListMoviesResponse {
+  repeated Movie movies = 1;
+}
+
+message ListShowsRequest {
+  string city = 1;
+  string movie_id = 2;
+  string sort = 3;
+  int32 limit = 4;
+}
+
+message ListShowsResponse {
+  repeated Show shows = 1;
+}
+
+message Movie {
+  string id = 1;
+  string title = 2;
+  int32 duration_min = 3;
+  string language = 4;
+  string certification = 5;
+}
+
+message Show {
+  string id = 1;
+  Movie movie = 2;
+  string screen_id = 3;
+  string starts_at = 4;
+  string ends_at = 5;
+  double price = 6;
+  double price_with_tax = 7;
+}
