@@ -11,9 +11,14 @@ import {
   InMemoryUserRepository,
   fakeHasher,
   indicator,
+  makeBookingService,
   sequentialIds,
 } from '../support/fakes.js';
 
+const bookingDeps = () => {
+  const { booking, bookings } = makeBookingService();
+  return { booking, bookings };
+};
 const config = loadConfig({ NODE_ENV: 'test' }, path.resolve('config'));
 
 async function build(opts: { redisUp?: boolean } = {}) {
@@ -30,7 +35,7 @@ async function build(opts: { redisUp?: boolean } = {}) {
     ids: sequentialIds(),
     refreshTokenTtlSec: config.auth.refreshTokenTtlSec,
   });
-  return { app: await buildHttpServer({ config, auth, health }), health };
+  return { app: await buildHttpServer({ config, auth, health, ...bookingDeps() }), health };
 }
 
 describe('HTTP adapter', () => {

@@ -5,7 +5,9 @@ import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Redis } from 'ioredis';
 import type { AuthUseCases } from '../../../ports/primary/auth.js';
+import type { BookingUseCases } from '../../../ports/primary/booking.js';
 import type { HealthUseCases } from '../../../ports/primary/health.js';
+import type { BookingRepository } from '../../../ports/repositories/booking-repository.js';
 import type { AppConfig } from '../../../config/schema.js';
 import { makeAuthGuard } from './plugins/auth-guard.js';
 import { registerErrorHandler } from './plugins/error-handler.js';
@@ -16,6 +18,8 @@ export interface HttpDeps {
   config: AppConfig;
   auth: AuthUseCases;
   health: HealthUseCases;
+  booking: BookingUseCases;
+  bookings: BookingRepository;
   /** When provided, rate-limit counters are shared across replicas. */
   redis?: Redis;
 }
@@ -53,6 +57,8 @@ export async function buildHttpServer(deps: HttpDeps): Promise<FastifyInstance> 
     v1Routes({
       auth: deps.auth,
       health: deps.health,
+      booking: deps.booking,
+      bookings: deps.bookings,
       guard,
       info: { name: config.app.name, version: config.app.version },
       authOptions: {

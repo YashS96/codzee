@@ -48,6 +48,12 @@ auth:
     max: 10
     windowMs: 60000
 
+booking:
+  holdTtlSec: 600
+  paymentWindowSec: 900
+  seatPrice: 249.99
+  expirySweepMs: 30000
+
 health:
   checkTimeoutMs: 2000
 

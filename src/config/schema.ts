@@ -50,6 +50,12 @@ export const configSchema = z
       bcryptRounds: z.number().int().min(4).max(15),
       rateLimit: z.object({ max: z.number().int().positive(), windowMs: z.number().int().positive() }),
     }),
+    booking: z.object({
+      holdTtlSec: z.number().int().positive(),
+      paymentWindowSec: z.number().int().positive(),
+      seatPrice: z.number().positive(),
+      expirySweepMs: z.number().int().positive(),
+    }),
     health: z.object({ checkTimeoutMs: z.number().int().positive() }),
     shutdown: z.object({
       drainDelayMs: z.number().int().nonnegative(),
