@@ -1,3 +1,4 @@
+import type { Cache } from '../../src/ports/secondary/cache.js';
 import type { HealthIndicator } from '../../src/ports/secondary/health-indicator.js';
 import type { PasswordHasher } from '../../src/ports/secondary/password-hasher.js';
 import type { SessionStore } from '../../src/ports/secondary/session-store.js';
@@ -32,6 +33,9 @@ export class InMemorySessionStore implements SessionStore {
     this.refresh.delete(token);
     return userId;
   }
+  async peekRefreshToken(token: string) {
+    return this.refresh.get(token) ?? null;
+  }
   async revokeRefreshToken(token: string) {
     this.refresh.delete(token);
   }
@@ -65,3 +69,17 @@ export const indicator = (name: string, healthy: boolean | (() => Promise<void>)
           if (!healthy) throw new Error(`${name} unreachable`);
         },
 });
+
+export class InMemoryCache implements Cache {
+  readonly entries = new Map<string, string>();
+  async get<T>(key: string) {
+    const raw = this.entries.get(key);
+    return raw === undefined ? null : (JSON.parse(raw) as T);
+  }
+  async set<T>(key: string, value: T) {
+    this.entries.set(key, JSON.stringify(value));
+  }
+  async delete(key: string) {
+    this.entries.delete(key);
+  }
+}

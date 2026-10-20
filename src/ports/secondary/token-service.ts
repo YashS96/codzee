@@ -4,6 +4,8 @@ export interface AccessTokenClaims {
   sub: string;
   role: Role;
   jti: string;
+  /** Issued-at as epoch seconds. */
+  iat: number;
   /** Expiry as epoch seconds. */
   exp: number;
 }

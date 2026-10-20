@@ -9,6 +9,7 @@ import { PostgresHealthIndicator } from '../adapters/secondary/postgres/pg-healt
 import { PgUserRepository } from '../adapters/repositories/postgres/pg-user-repository.js';
 import { createPgPool } from '../adapters/secondary/postgres/pool.js';
 import { createRedisClient } from '../adapters/secondary/redis/client.js';
+import { RedisCache } from '../adapters/secondary/redis/redis-cache.js';
 import { RedisHealthIndicator } from '../adapters/secondary/redis/redis-health.js';
 import { RedisSessionStore } from '../adapters/secondary/redis/redis-session-store.js';
 import { BcryptPasswordHasher } from '../adapters/secondary/security/bcrypt-password-hasher.js';
@@ -45,7 +46,9 @@ export async function createContainer(config: AppConfig): Promise<Container> {
     sessions: new RedisSessionStore(redis),
     clock: systemClock,
     ids: uuidGenerator,
+    cache: new RedisCache(redis),
     refreshTokenTtlSec: config.auth.refreshTokenTtlSec,
+    profileCacheTtlSec: config.cache.profileTtlSec,
   });
 
   const app = await buildHttpServer({ config, auth, health, redis });

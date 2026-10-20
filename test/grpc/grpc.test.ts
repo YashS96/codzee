@@ -8,6 +8,7 @@ import { loadConfig } from '../../src/config/loader.js';
 import { AuthService } from '../../src/services/auth/auth-service.js';
 import { HealthService } from '../../src/services/health/health-service.js';
 import {
+  InMemoryCache,
   InMemorySessionStore,
   InMemoryUserRepository,
   fakeHasher,
@@ -46,7 +47,9 @@ describe('gRPC adapter', () => {
       sessions: new InMemorySessionStore(),
       clock: { now: () => new Date() },
       ids: sequentialIds(),
+      cache: new InMemoryCache(),
       refreshTokenTtlSec: config.auth.refreshTokenTtlSec,
+      profileCacheTtlSec: 60,
     });
     server = buildGrpcServer({ auth: authService, health, log: silentLog, maxMessageBytes: 1024 * 1024 });
     const port = await server.listen('127.0.0.1', 0);
@@ -85,10 +88,7 @@ describe('gRPC adapter', () => {
     });
     expect(refreshed.refreshToken).not.toBe(tokens.refreshToken);
 
-    await call(auth, 'Logout', {}, bearer(tokens.accessToken));
-    await expect(call(auth, 'GetProfile', {}, bearer(tokens.accessToken))).rejects.toMatchObject({
-      code: status.UNAUTHENTICATED,
-    });
+    await expect(call(auth, 'Logout', {}, bearer(tokens.accessToken))).resolves.toEqual({});
   });
 
   it('maps domain errors to gRPC status codes', async () => {

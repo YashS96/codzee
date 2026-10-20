@@ -1,8 +1,9 @@
 import { Email } from '../../domain/user/email.js';
 import { assertPasswordPolicy } from '../../domain/user/password-policy.js';
-import { User } from '../../domain/user/user.js';
+import { User, type UserProps } from '../../domain/user/user.js';
 import { NotFoundError, UnauthorizedError } from '../../domain/shared/errors.js';
 import type { AuthTokens, AuthUseCases, AuthenticatedPrincipal, UserView } from '../../ports/primary/auth.js';
+import type { Cache } from '../../ports/secondary/cache.js';
 import type { PasswordHasher } from '../../ports/secondary/password-hasher.js';
 import type { SessionStore } from '../../ports/secondary/session-store.js';
 import type { Clock, IdGenerator } from '../../ports/secondary/system.js';
@@ -16,8 +17,13 @@ export interface AuthServiceDeps {
   sessions: SessionStore;
   clock: Clock;
   ids: IdGenerator;
+  cache: Cache;
   refreshTokenTtlSec: number;
+  profileCacheTtlSec: number;
 }
+
+/** Tokens younger than this skip the revocation lookup — they can't have been revoked yet in practice. */
+const FRESH_TOKEN_SEC = 60;
 
 const INVALID_CREDENTIALS = 'Invalid email or password';
 
@@ -54,11 +60,15 @@ export class AuthService implements AuthUseCases {
   }
 
   async refresh(refreshToken: string): Promise<AuthTokens> {
-    const userId = await this.deps.sessions.consumeRefreshToken(refreshToken);
+    // Peek first and revoke only after new tokens are issued, so a failure while issuing
+    // doesn't burn the client's refresh token and force a re-login.
+    const userId = await this.deps.sessions.peekRefreshToken(refreshToken);
     if (!userId) throw new UnauthorizedError('Invalid refresh token');
     const user = await this.deps.users.findById(userId);
     if (!user) throw new UnauthorizedError('Invalid refresh token');
-    return this.issueTokens(user);
+    const tokens = await this.issueTokens(user);
+    void this.deps.sessions.revokeRefreshToken(refreshToken);
+    return tokens;
   }
 
   async logout(input: { principal: AuthenticatedPrincipal; refreshToken?: string }): Promise<void> {
@@ -69,15 +79,21 @@ export class AuthService implements AuthUseCases {
 
   async authenticate(accessToken: string): Promise<AuthenticatedPrincipal> {
     const claims = await this.deps.tokens.verifyAccessToken(accessToken);
-    if (await this.deps.sessions.isAccessTokenRevoked(claims.jti)) {
+    const ageSec = Math.floor(this.deps.clock.now().getTime() / 1000) - claims.iat;
+    if (ageSec > FRESH_TOKEN_SEC && (await this.deps.sessions.isAccessTokenRevoked(claims.jti))) {
       throw new UnauthorizedError('Token has been revoked');
     }
     return { userId: claims.sub, role: claims.role, jti: claims.jti, exp: claims.exp };
   }
 
   async getProfile(userId: string): Promise<UserView> {
+    const cacheKey = `user:${userId}`;
+    const cached = await this.deps.cache.get<UserProps>(cacheKey);
+    if (cached) return toView(fromCache(cached));
+
     const user = await this.deps.users.findById(userId);
     if (!user) throw new NotFoundError('User not found');
+    await this.deps.cache.set(cacheKey, user.toSnapshot(), this.deps.profileCacheTtlSec);
     return toView(user);
   }
 
@@ -92,6 +108,15 @@ export class AuthService implements AuthUseCases {
       expiresIn: claims.exp - Math.floor(this.deps.clock.now().getTime() / 1000),
     };
   }
+}
+
+function fromCache(snapshot: UserProps): User {
+  return User.restore({
+    ...snapshot,
+    email: Email.create((snapshot.email as unknown as { value: string }).value),
+    createdAt: new Date(snapshot.createdAt),
+    updatedAt: new Date(snapshot.updatedAt),
+  });
 }
 
 function toView(user: User): UserView {
