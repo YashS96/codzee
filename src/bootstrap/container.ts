@@ -6,15 +6,20 @@ import type { FastifyInstance } from 'fastify';
 import { buildGrpcServer, type GrpcServer } from '../adapters/primary/grpc/server.js';
 import { buildHttpServer } from '../adapters/primary/http/server.js';
 import { PostgresHealthIndicator } from '../adapters/secondary/postgres/pg-health.js';
+import { PgBookingRepository } from '../adapters/repositories/postgres/pg-booking-repository.js';
+import { PgHoldRepository } from '../adapters/repositories/postgres/pg-hold-repository.js';
 import { PgUserRepository } from '../adapters/repositories/postgres/pg-user-repository.js';
 import { createPgPool } from '../adapters/secondary/postgres/pool.js';
 import { createRedisClient } from '../adapters/secondary/redis/client.js';
+import { RedisIdempotencyStore } from '../adapters/secondary/redis/redis-idempotency-store.js';
+import { RedisSeatLock } from '../adapters/secondary/redis/redis-seat-lock.js';
 import { RedisHealthIndicator } from '../adapters/secondary/redis/redis-health.js';
 import { RedisSessionStore } from '../adapters/secondary/redis/redis-session-store.js';
 import { BcryptPasswordHasher } from '../adapters/secondary/security/bcrypt-password-hasher.js';
 import { JwtTokenService } from '../adapters/secondary/security/jwt-token-service.js';
 import { systemClock, uuidGenerator } from '../adapters/secondary/system/system.js';
 import { AuthService } from '../services/auth/auth-service.js';
+import { BookingService } from '../services/booking/booking-service.js';
 import { HealthService } from '../services/health/health-service.js';
 import type { AppConfig } from '../config/schema.js';
 
@@ -48,7 +53,23 @@ export async function createContainer(config: AppConfig): Promise<Container> {
     refreshTokenTtlSec: config.auth.refreshTokenTtlSec,
   });
 
-  const app = await buildHttpServer({ config, auth, health, redis });
+  const bookings = new PgBookingRepository(pool);
+  const booking = new BookingService({
+    holds: new PgHoldRepository(pool),
+    bookings,
+    locks: new RedisSeatLock(redis),
+    idempotency: new RedisIdempotencyStore(redis),
+    clock: systemClock,
+    ids: uuidGenerator,
+    holdTtlSec: config.booking.holdTtlSec,
+    paymentWindowSec: config.booking.paymentWindowSec,
+    seatPrice: config.booking.seatPrice,
+  });
+
+  const app = await buildHttpServer({ config, auth, health, booking, bookings, redis });
+
+  // Expire unpaid bookings in the background.
+  setInterval(() => booking.expireStaleBookings(new Date()), config.booking.expirySweepMs);
   pool.on('error', (err) => app.log.error({ err }, 'postgres pool error'));
 
   const grpc = config.grpc.enabled
