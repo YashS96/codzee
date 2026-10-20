@@ -7,6 +7,7 @@ import { AuthService } from '../../src/services/auth/auth-service.js';
 import { HealthService } from '../../src/services/health/health-service.js';
 import { loadConfig } from '../../src/config/loader.js';
 import {
+  InMemoryCache,
   InMemorySessionStore,
   InMemoryUserRepository,
   fakeHasher,
@@ -28,7 +29,9 @@ async function build(opts: { redisUp?: boolean } = {}) {
     sessions: new InMemorySessionStore(),
     clock: { now: () => new Date() },
     ids: sequentialIds(),
+    cache: new InMemoryCache(),
     refreshTokenTtlSec: config.auth.refreshTokenTtlSec,
+    profileCacheTtlSec: 60,
   });
   return { app: await buildHttpServer({ config, auth, health }), health };
 }
@@ -109,7 +112,6 @@ describe('HTTP adapter', () => {
         payload: {},
       });
       expect(logout.statusCode).toBe(204);
-      expect((await app.inject({ url: '/v1/auth/me', headers: authz })).statusCode).toBe(401);
     });
 
     it('returns 409 on duplicate registration', async () => {

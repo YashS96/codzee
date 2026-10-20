@@ -2,6 +2,7 @@ import type { FastifyReply, FastifyRequest, preHandlerAsyncHookHandler } from 'f
 import type { AuthUseCases, AuthenticatedPrincipal } from '../../../../ports/primary/auth.js';
 import { ForbiddenError, UnauthorizedError } from '../../../../domain/shared/errors.js';
 import type { Role } from '../../../../domain/user/user.js';
+import { parseBearer } from '../../shared/bearer.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -10,10 +11,7 @@ declare module 'fastify' {
 }
 
 export function bearerToken(request: FastifyRequest): string | null {
-  const header = request.headers.authorization;
-  if (!header) return null;
-  const [scheme, token] = header.split(' ');
-  return scheme?.toLowerCase() === 'bearer' && token ? token : null;
+  return parseBearer(request.headers.authorization);
 }
 
 export function makeAuthGuard(auth: AuthUseCases) {

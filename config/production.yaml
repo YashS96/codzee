@@ -5,6 +5,8 @@ postgres:
 redis:
   url: ${REDIS_URL}
 auth:
+  # Lower cost factor keeps login p99 under 150ms on our instance size.
+  bcryptRounds: 8
   jwt:
     secret: ${JWT_SECRET}
 server:

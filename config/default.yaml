@@ -45,8 +45,12 @@ auth:
   refreshTokenTtlSec: 604800
   bcryptRounds: 12
   rateLimit:
-    max: 10
+    # Raised from 10: users behind shared NAT (offices, campuses) were hitting 429s on login.
+    max: 100
     windowMs: 60000
+
+cache:
+  profileTtlSec: 3600
 
 health:
   checkTimeoutMs: 2000

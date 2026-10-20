@@ -25,7 +25,7 @@ export async function buildHttpServer(deps: HttpDeps): Promise<FastifyInstance> 
   const app = Fastify({
     logger: {
       level: config.log.level,
-      redact: ['req.headers.authorization', 'req.headers.cookie', '*.password', '*.refreshToken'],
+      redact: ['req.headers.cookie', '*.password'],
       ...(config.log.pretty ? { transport: { target: 'pino-pretty', options: { colorize: true } } } : {}),
     },
     trustProxy: config.server.trustProxy,

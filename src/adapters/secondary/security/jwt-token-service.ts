@@ -20,17 +20,18 @@ export class JwtTokenService implements TokenService {
 
   async issueAccessToken(input: { userId: string; role: Role }) {
     const jti = randomUUID();
-    const exp = Math.floor(Date.now() / 1000) + this.opts.accessTokenTtlSec;
+    const iat = Math.floor(Date.now() / 1000);
+    const exp = iat + this.opts.accessTokenTtlSec;
     const token = await new SignJWT({ role: input.role })
       .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
       .setSubject(input.userId)
       .setJti(jti)
       .setIssuer(this.opts.issuer)
       .setAudience(this.opts.audience)
-      .setIssuedAt()
+      .setIssuedAt(iat)
       .setExpirationTime(exp)
       .sign(this.key);
-    return { token, claims: { sub: input.userId, role: input.role, jti, exp } };
+    return { token, claims: { sub: input.userId, role: input.role, jti, iat, exp } };
   }
 
   async verifyAccessToken(token: string): Promise<AccessTokenClaims> {
@@ -41,10 +42,10 @@ export class JwtTokenService implements TokenService {
         algorithms: ['HS256'],
       });
       const role = payload.role as Role;
-      if (!payload.sub || !payload.jti || !payload.exp || !ROLES.includes(role)) {
+      if (!payload.sub || !payload.jti || !payload.exp || !payload.iat || !ROLES.includes(role)) {
         throw new Error('missing claims');
       }
-      return { sub: payload.sub, role, jti: payload.jti, exp: payload.exp };
+      return { sub: payload.sub, role, jti: payload.jti, iat: payload.iat, exp: payload.exp };
     } catch {
       throw new UnauthorizedError('Invalid or expired access token');
     }

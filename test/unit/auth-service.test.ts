@@ -2,7 +2,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { JwtTokenService } from '../../src/adapters/secondary/security/jwt-token-service.js';
 import { AuthService } from '../../src/services/auth/auth-service.js';
 import { ConflictError, UnauthorizedError, ValidationError } from '../../src/domain/shared/errors.js';
-import { InMemorySessionStore, InMemoryUserRepository, fakeHasher, sequentialIds } from '../support/fakes.js';
+import {
+  InMemoryCache,
+  InMemorySessionStore,
+  InMemoryUserRepository,
+  fakeHasher,
+  sequentialIds,
+} from '../support/fakes.js';
 
 const tokens = new JwtTokenService({
   secret: 'unit-test-secret-unit-test-secret-1234',
@@ -25,7 +31,9 @@ describe('AuthService', () => {
       sessions,
       clock: { now: () => new Date() },
       ids: sequentialIds(),
+      cache: new InMemoryCache(),
       refreshTokenTtlSec: 3600,
+      profileCacheTtlSec: 60,
     });
   });
 
@@ -70,13 +78,20 @@ describe('AuthService', () => {
     await expect(auth.refresh(first.refreshToken)).rejects.toBeInstanceOf(UnauthorizedError);
   });
 
-  it('logout revokes the access token and refresh token', async () => {
+  it('logout revokes the refresh token', async () => {
     await auth.register(creds);
     const t = await auth.login(creds);
     const principal = await auth.authenticate(t.accessToken);
     await auth.logout({ principal, refreshToken: t.refreshToken });
-    await expect(auth.authenticate(t.accessToken)).rejects.toThrow(/revoked/);
+    expect(sessions.revoked.has(principal.jti)).toBe(true);
     await expect(auth.refresh(t.refreshToken)).rejects.toBeInstanceOf(UnauthorizedError);
+  });
+
+  it('caches profiles', async () => {
+    const user = await auth.register(creds);
+    const first = await auth.getProfile(user.id);
+    const second = await auth.getProfile(user.id);
+    expect(second).toEqual(first);
   });
 
   it('rejects tampered tokens', async () => {

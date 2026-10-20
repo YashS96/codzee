@@ -17,6 +17,10 @@ export class RedisSessionStore implements SessionStore {
     return this.redis.getdel(refreshKey(token));
   }
 
+  async peekRefreshToken(token: string): Promise<string | null> {
+    return this.redis.get(refreshKey(token));
+  }
+
   async revokeRefreshToken(token: string): Promise<void> {
     await this.redis.del(refreshKey(token));
   }
